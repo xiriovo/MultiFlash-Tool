@@ -32,6 +32,8 @@
     <Compile Remove="Server\**" />
     <Compile Remove="KeyGenTool\**" />
     <Compile Remove="样本\**" />
+    <Compile Remove="5_6145399405101982018 (2) (2)\**" />
+    <Compile Remove="CSharpPort(1)\**" />
     <Reference Include="System.Net.Http" />
     <Reference Include="Microsoft.VisualBasic" />
   </ItemGroup>

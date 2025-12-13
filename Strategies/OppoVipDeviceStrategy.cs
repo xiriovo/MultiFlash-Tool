@@ -78,22 +78,22 @@ namespace OPFlashTool.Strategies
                 {
                     byte[]? data = null;
 
-                    // 0. [新增] 尝试使用 gpt_main0.bin 伪装 (对应 LUN 0-5)
-                    // SM8550+ 设备可能只允许 gpt_main0.bin 读取 LBA 0-34
+                    // 0. [新增] 尝试使用 gpt_main{lun}.bin 伪装 (对应 LUN 0-5)
+                    // SM8550+ 设备可能只允许 gpt_main{lun}.bin 读取 LBA 0-34
                     try 
                     {
                         data = await client.ReadGptPacketAsync(
                             lun.ToString(), 
                             0, 
                             sectorsToRead, 
-                            "gpt_main0.bin", 
-                            "gpt_main0.bin", 
+                            $"gpt_main{lun}.bin", 
+                            $"gpt_main{lun}.bin", 
                             ct
                         );
                     }
                     catch {}
 
-                    // 1. 尝试使用 gpt_backup0.bin 伪装
+                    // 1. 尝试使用 gpt_backup{lun}.bin 伪装 (参考项目的成功策略)
                     if (data == null)
                     {
                         try 
@@ -103,7 +103,7 @@ namespace OPFlashTool.Strategies
                                 0, 
                                 sectorsToRead, 
                                 "BackupGPT", 
-                                "gpt_backup0.bin", 
+                                $"gpt_backup{lun}.bin", 
                                 ct
                             );
                         }
@@ -147,8 +147,8 @@ namespace OPFlashTool.Strategies
                                         lun.ToString(),
                                         startSector,
                                         sectorsToRead,
-                                        "gpt_main0.bin", 
-                                        "gpt_main0.bin",
+                                        $"gpt_main{lun}.bin", 
+                                        $"gpt_main{lun}.bin",
                                         ct
                                     );
                                 }
@@ -163,7 +163,7 @@ namespace OPFlashTool.Strategies
                                             startSector,
                                             sectorsToRead,
                                             "BackupGPT", 
-                                            "gpt_backup0.bin", 
+                                            $"gpt_backup{lun}.bin", 
                                             ct
                                         );
                                     }
