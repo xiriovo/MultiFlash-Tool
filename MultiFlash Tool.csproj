@@ -12,6 +12,20 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <AssemblyName>MultiFlash Tool</AssemblyName>
     <RootNamespace>OPFlashTool</RootNamespace>
+    
+    <!-- 应用程序图标 (请将 logo.jpg 转换为 icon.ico 后取消注释) -->
+    <!-- <ApplicationIcon>assets\icon.ico</ApplicationIcon> -->
+    
+    <!-- 版权和程序集信息 -->
+    <Product>MultiFlash Tool</Product>
+    <Company>MultiFlash Tool Team</Company>
+    <Authors>xiriovo, Love-suannai</Authors>
+    <Copyright>Copyright 2025 MultiFlash Tool Team. All rights reserved.</Copyright>
+    <Description>一款开源的多功能安卓刷机工具，支持高通 EDL (9008) 和 Fastboot 模式</Description>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <NeutralLanguage>zh-CN</NeutralLanguage>
   </PropertyGroup>
 
   <ItemGroup>

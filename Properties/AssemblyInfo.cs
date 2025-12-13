@@ -5,14 +5,14 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-// [assembly: AssemblyTitle("MultiFlash Tool")]
-// [assembly: AssemblyDescription("")]
-// [assembly: AssemblyConfiguration("")]
-// [assembly: AssemblyCompany("")]
-// [assembly: AssemblyProduct("MultiFlash Tool")]
-// [assembly: AssemblyCopyright("Copyright © xiri 2025")]
-// [assembly: AssemblyTrademark("")]
-// [assembly: AssemblyCulture("")]
+[assembly: AssemblyTitle("MultiFlash Tool")]
+[assembly: AssemblyDescription("一款开源的多功能安卓刷机工具，支持高通 EDL (9008) 和 Fastboot 模式")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("MultiFlash Tool Team")]
+[assembly: AssemblyProduct("MultiFlash Tool")]
+[assembly: AssemblyCopyright("Copyright © 2025 MultiFlash Tool Team (xiriovo, Love-suannai). All rights reserved.")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
 
 // 将 ComVisible 设置为 false 会使此程序集中的类型
 //对 COM 组件不可见。如果需要从 COM 访问此程序集中的类型
@@ -29,5 +29,5 @@ using System.Runtime.InteropServices;
 //      生成号
 //      修订号
 //
-// [assembly: AssemblyVersion("1.0.0.0")]
-// [assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.0.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
