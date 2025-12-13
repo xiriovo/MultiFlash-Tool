@@ -10,12 +10,59 @@
   [![License](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
   [![.NET](https://img.shields.io/badge/.NET%20Framework-4.8-blue.svg)](https://dotnet.microsoft.com/)
   [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+  [![GitHub Stars](https://img.shields.io/github/stars/xiriovo/MultiFlash-Tool?style=social)](https://github.com/xiriovo/MultiFlash-Tool/stargazers)
+  [![GitHub Forks](https://img.shields.io/github/forks/xiriovo/MultiFlash-Tool?style=social)](https://github.com/xiriovo/MultiFlash-Tool/network/members)
   
-  中文文档 | [English](README_EN.md)
+  [![GitHub Issues](https://img.shields.io/github/issues/xiriovo/MultiFlash-Tool)](https://github.com/xiriovo/MultiFlash-Tool/issues)
+  [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/xiriovo/MultiFlash-Tool)](https://github.com/xiriovo/MultiFlash-Tool/pulls)
+  [![GitHub Release](https://img.shields.io/github/v/release/xiriovo/MultiFlash-Tool)](https://github.com/xiriovo/MultiFlash-Tool/releases)
+  [![GitHub Downloads](https://img.shields.io/github/downloads/xiriovo/MultiFlash-Tool/total)](https://github.com/xiriovo/MultiFlash-Tool/releases)
+  
+  中文文档 | [English](README_EN.md) | [快速参考](docs/QUICK_REFERENCE.md)
   
 </div>
 
 ---
+
+## 📑 目录
+
+- [许可声明](#许可声明)
+- [功能特性](#功能特性)
+- [系统要求](#系统要求)
+- [快速开始](#快速开始)
+- [文档](#文档)
+- [技术栈](#技术栈)
+- [常见问题](#常见问题)
+- [贡献](#贡献)
+- [许可证](#许可证)
+- [联系方式](#联系方式)
+
+## 🎯 项目亮点
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/speed.png" width="60"/><br>
+      <b>高效稳定</b><br>
+      优化的刷写算法<br>支持断点续传
+    </td>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/easy.png" width="60"/><br>
+      <b>简单易用</b><br>
+      图形化界面<br>一键操作
+    </td>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/module.png" width="60"/><br>
+      <b>功能全面</b><br>
+      EDL + Fastboot<br>固件工具集
+    </td>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/open-source.png" width="60"/><br>
+      <b>开源免费</b><br>
+      完全开源<br>持续更新
+    </td>
+  </tr>
+</table>
 
 ## ⚠️ 许可声明
 
@@ -117,9 +164,16 @@
 
 ## 📚 文档
 
+### 核心文档
+- **[快速参考指南](docs/QUICK_REFERENCE.md)** ⭐ - 常用操作速查手册
 - **[开发指南](DEVELOPMENT.md)** - 项目结构和开发规范
 - **[贡献指南](CONTRIBUTING.md)** - 如何参与项目贡献
 - **[更新日志](CHANGELOG.md)** - 版本更新记录
+
+### 辅助文档
+- **[联系方式配置](docs/CONTACT_INFO.md)** - 所有联系渠道
+- **[截图和演示](docs/SCREENSHOTS.md)** - 界面预览和视频教程
+- **[文档改进记录](docs/DOCUMENTATION_IMPROVEMENTS.md)** - 文档完善历史
 
 ## 🤝 贡献
 

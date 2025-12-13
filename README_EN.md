@@ -10,12 +10,59 @@
   [![License](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
   [![.NET](https://img.shields.io/badge/.NET%20Framework-4.8-blue.svg)](https://dotnet.microsoft.com/)
   [![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey.svg)](https://www.microsoft.com/windows)
+  [![GitHub Stars](https://img.shields.io/github/stars/xiriovo/MultiFlash-Tool?style=social)](https://github.com/xiriovo/MultiFlash-Tool/stargazers)
+  [![GitHub Forks](https://img.shields.io/github/forks/xiriovo/MultiFlash-Tool?style=social)](https://github.com/xiriovo/MultiFlash-Tool/network/members)
   
-  [中文文档](README.md) | English
+  [![GitHub Issues](https://img.shields.io/github/issues/xiriovo/MultiFlash-Tool)](https://github.com/xiriovo/MultiFlash-Tool/issues)
+  [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/xiriovo/MultiFlash-Tool)](https://github.com/xiriovo/MultiFlash-Tool/pulls)
+  [![GitHub Release](https://img.shields.io/github/v/release/xiriovo/MultiFlash-Tool)](https://github.com/xiriovo/MultiFlash-Tool/releases)
+  [![GitHub Downloads](https://img.shields.io/github/downloads/xiriovo/MultiFlash-Tool/total)](https://github.com/xiriovo/MultiFlash-Tool/releases)
+  
+  [中文文档](README.md) | English | [Quick Reference](docs/QUICK_REFERENCE.md)
   
 </div>
 
 ---
+
+## 📑 Table of Contents
+
+- [License Notice](#license-notice)
+- [Features](#features)
+- [System Requirements](#system-requirements)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Tech Stack](#tech-stack)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
+
+## 🎯 Project Highlights
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/speed.png" width="60"/><br>
+      <b>Efficient & Stable</b><br>
+      Optimized flashing<br>Resume support
+    </td>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/easy.png" width="60"/><br>
+      <b>Easy to Use</b><br>
+      GUI interface<br>One-click operation
+    </td>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/module.png" width="60"/><br>
+      <b>Full-Featured</b><br>
+      EDL + Fastboot<br>Firmware toolkit
+    </td>
+    <td align="center">
+      <img src="https://img.icons8.com/fluency/96/000000/open-source.png" width="60"/><br>
+      <b>Open Source</b><br>
+      Fully open<br>Active updates
+    </td>
+  </tr>
+</table>
 
 ## ⚠️ License Notice
 
@@ -117,9 +164,16 @@ This project is licensed under a **Non-Commercial License**. **Any form of comme
 
 ## 📚 Documentation
 
+### Core Documents
+- **[Quick Reference Guide](docs/QUICK_REFERENCE.md)** ⭐ - Quick operation manual
 - **[Development Guide](DEVELOPMENT.md)** - Project structure and development standards
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
 - **[Changelog](CHANGELOG.md)** - Version update history
+
+### Additional Documents
+- **[Contact Information](docs/CONTACT_INFO.md)** - All contact channels
+- **[Screenshots & Demos](docs/SCREENSHOTS.md)** - Interface preview and video tutorials
+- **[Documentation Improvements](docs/DOCUMENTATION_IMPROVEMENTS.md)** - Documentation history
 
 ## 🤝 Contributing
 
