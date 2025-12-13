@@ -57,7 +57,10 @@ namespace OPFlashTool.Strategies
         }
 
         // [核心逻辑] OPPO 专用的伪装读取策略 (参考项目逻辑)
-        // 参考项目 VIP 模式: label=BackupGPT, filename=gpt_main{lun}.bin, 固定 6 扇区, 2 次重试
+        // 参考项目 VIP 模式动态策略:
+        // - 某些设备禁止访问 BackupGPT (如 SM8550)
+        // - 某些设备禁止访问 PrimaryGPT
+        // - 策略: 第一次尝试 PrimaryGPT，失败重试时尝试 BackupGPT
         public override async Task<List<PartitionInfo>> ReadGptAsync(FirehoseClient client, CancellationToken ct, Action<string> log)
         {
             var allPartitions = new List<PartitionInfo>();
@@ -77,18 +80,20 @@ namespace OPFlashTool.Strategies
                 byte[]? data = null;
                 bool success = false;
 
-                // 参考项目: 2 次重试机制
+                // 参考项目: 2 次重试机制 + 动态标签策略
                 for (int retry = 0; retry < 2; retry++)
                 {
                     try 
                     {
-                        // 参考项目 VIP 模式的成功策略:
-                        // label=BackupGPT, filename=gpt_main{lun}.bin (从保存路径获取)
+                        // 参考项目 VIP 模式动态策略:
+                        // 第一次尝试 PrimaryGPT，失败重试时尝试 BackupGPT
+                        string label = (retry == 0) ? "PrimaryGPT" : "BackupGPT";
+                        
                         data = await client.ReadGptPacketAsync(
                             lun.ToString(), 
                             0, 
                             sectorsToRead, 
-                            "BackupGPT", 
+                            label, 
                             $"gpt_main{lun}.bin", 
                             ct
                         );
