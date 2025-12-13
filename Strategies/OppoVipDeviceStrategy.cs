@@ -56,32 +56,34 @@ namespace OPFlashTool.Strategies
             return Task.FromResult(client.PerformVipAuth(finalDigest, finalSig));
         }
 
-        // [核心逻辑] OPPO 专用的伪装读取策略
-        // 原理：设备防火墙通常拦截 "PrimaryGPT" 读取，但放行 "BackupGPT" 或特定文件名。
+        // [核心逻辑] OPPO 专用的伪装读取策略 (参考项目逻辑)
+        // 参考项目 VIP 模式: label=BackupGPT, filename=gpt_main{lun}.bin, 固定 6 扇区, 2 次重试
         public override async Task<List<PartitionInfo>> ReadGptAsync(FirehoseClient client, CancellationToken ct, Action<string> log)
         {
             var allPartitions = new List<PartitionInfo>();
             _lunFirstPartitions.Clear(); // 清空缓存
             
-            // 自动判断存储类型和范围
-            // UFS (4096) -> 扫描 LUN 0-5
-            // eMMC (512) -> 扫描 LUN 0
-            int maxLun = (client.SectorSize == 4096) ? 5 : 0;
-            int sectorsToRead = (client.SectorSize == 4096) ? 6 : 34;
+            // 参考项目: 固定扫描 LUN 0-5, 固定读取 6 扇区
+            const int maxLun = 5;
+            const int sectorsToRead = 6;
             int lunRead = 0;
+
+            log("[Info] 开始读取分区表...");
 
             for (int lun = 0; lun <= maxLun; lun++)
             {
                 if (ct.IsCancellationRequested) break;
 
-                try 
-                {
-                    byte[]? data = null;
+                byte[]? data = null;
+                bool success = false;
 
-                    // 0. [优先] 参考项目的成功策略: label=BackupGPT + filename=gpt_main{lun}.bin
-                    // 这是参考项目 VIP 模式下的实际组合
+                // 参考项目: 2 次重试机制
+                for (int retry = 0; retry < 2; retry++)
+                {
                     try 
                     {
+                        // 参考项目 VIP 模式的成功策略:
+                        // label=BackupGPT, filename=gpt_main{lun}.bin (从保存路径获取)
                         data = await client.ReadGptPacketAsync(
                             lun.ToString(), 
                             0, 
@@ -90,132 +92,61 @@ namespace OPFlashTool.Strategies
                             $"gpt_main{lun}.bin", 
                             ct
                         );
-                    }
-                    catch {}
 
-                    // 1. 如果失败，尝试 label=BackupGPT + filename=gpt_backup{lun}.bin
-                    if (data == null)
-                    {
-                        try 
+                        if (data != null && data.Length > 0)
                         {
-                            data = await client.ReadGptPacketAsync(
-                                lun.ToString(), 
-                                0, 
-                                sectorsToRead, 
-                                "BackupGPT", 
-                                $"gpt_backup{lun}.bin", 
-                                ct
-                            );
-                        }
-                        catch {}
-                    }
-
-                    // 2. 如果失败，尝试使用 ssd 伪装
-                    if (data == null)
-                    {
-                        // log($"[GPT] LUN {lun}: gpt_main0.bin 读取失败，尝试 ssd...");
-                        data = await client.ReadGptPacketAsync(
-                            lun.ToString(), 
-                            0, 
-                            sectorsToRead, 
-                            "ssd", 
-                            "ssd", 
-                            ct
-                        );
-                    }
-
-                    // 3. 如果 Primary GPT 全部失败，尝试读取 Backup GPT
-                    if (data == null)
-                    {
-                        log($"[GPT] LUN {lun}: Primary GPT 读取被拒绝，尝试读取 Backup GPT...");
-                        
-                        // 获取存储信息以计算 Backup GPT 位置
-                        string info = client.GetStorageInfo(lun);
-                        long totalSectors = ParseTotalSectors(info);
-                        
-                        if (totalSectors > 0)
-                        {
-                            long startSector = totalSectors - sectorsToRead;
-                            if (startSector > 0)
-                            {
-                                log($"[GPT] 尝试读取 Backup GPT @ {startSector} (Total: {totalSectors})...");
-                                
-                                // 尝试 Backup GPT (顺序: BackupGPT+main -> BackupGPT+backup -> ssd)
-                                try
-                                {
-                                    data = await client.ReadGptPacketAsync(
-                                        lun.ToString(),
-                                        startSector,
-                                        sectorsToRead,
-                                        "BackupGPT", 
-                                        $"gpt_main{lun}.bin",
-                                        ct
-                                    );
-                                }
-                                catch {}
-
-                                if (data == null)
-                                {
-                                    try 
-                                    {
-                                        data = await client.ReadGptPacketAsync(
-                                            lun.ToString(),
-                                            startSector,
-                                            sectorsToRead,
-                                            "BackupGPT", 
-                                            $"gpt_backup{lun}.bin", 
-                                            ct
-                                        );
-                                    }
-                                    catch {}
-                                }
-
-                                if (data == null)
-                                {
-                                    data = await client.ReadGptPacketAsync(
-                                        lun.ToString(),
-                                        startSector,
-                                        sectorsToRead,
-                                        "ssd", 
-                                        "ssd",
-                                        ct
-                                    );
-                                }
-                            }
-                        }
-                        else
-                        {
-                            log($"[GPT] 无法获取 LUN {lun} 大小，跳过 Backup GPT");
+                            success = true;
+                            break; // 成功则跳出重试
                         }
                     }
-
-                    if (data != null)
+                    catch (Exception ex)
                     {
-                        // 解析数据
+                        log($"[Debug] LUN{lun} 读取异常: {ex.Message}");
+                    }
+                    
+                    // 失败等待后重试 (参考项目: Thread.Sleep(300))
+                    if (!success && retry == 0) 
+                    {
+                        await Task.Delay(300);
+                    }
+                }
+
+                if (success && data != null)
+                {
+                    // 解析 GPT 确认数据有效性
+                    try
+                    {
                         var parts = GptParser.ParseGptBytes(data, lun);
                         
                         if (parts != null && parts.Count > 0)
                         {
                             allPartitions.AddRange(parts);
                             lunRead++;
+                            log($"[Success] LUN{lun}: 读取到 {parts.Count} 个分区");
 
-                            // [新增] 缓存该 LUN 的第一个分区名称 (StartLba 最小的那个)
-                            // 使用 System.Linq 命名空间
+                            // 缓存该 LUN 的第一个分区名称 (StartLba 最小的那个)
                             var firstPart = System.Linq.Enumerable.OrderBy(parts, p => p.StartLba).FirstOrDefault();
                             if (firstPart != null)
                             {
                                 _lunFirstPartitions[lun] = firstPart.Name;
-                                log($"[GPT] LUN {lun} 首个分区: {firstPart.Name} (@{firstPart.StartLba})");
                             }
                         }
+                        else
+                        {
+                            log($"[Info] LUN{lun}: 分区表为空或无效");
+                        }
+                    }
+                    catch
+                    {
+                        log($"[Warn] LUN{lun}: 数据已获取但解析失败");
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    log($"[GPT] LUN {lun} 异常: {ex.Message}");
+                    // 参考项目: 只有当 LUN0 失败时才报严重错误，其他 LUN 可能是空的
+                    if (lun == 0) log($"[Error] 无法读取 LUN0 分区表 (关键)");
+                    else log($"[Info] LUN{lun} 无响应或不存在");
                 }
-
-                await Task.Delay(50);
             }
 
             log($"[GPT] 共读取到 {lunRead} 个 LUN，解析出 {allPartitions.Count} 个分区");
