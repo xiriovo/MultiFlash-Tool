@@ -4940,6 +4940,105 @@ namespace OPFlashTool
         {
 
         }
+
+        #region 进度条和状态更新
+
+        private DateTime _lastUiUpdate = DateTime.MinValue;
+        private Stopwatch? _operationStopwatch;
+
+        /// <summary>
+        /// 重置进度条和状态
+        /// </summary>
+        private void ResetProgress()
+        {
+            if (InvokeRequired) { Invoke(new Action(ResetProgress)); return; }
+            progress1.Value = 0;
+            label2.Text = "速度：0KB/s";
+            label3.Text = "时间：00:00";
+            input8.Text = "状态：等待操作...";
+        }
+
+        /// <summary>
+        /// 更新进度条、速度和时间
+        /// </summary>
+        private void UpdateProgress(long current, long total, Stopwatch? sw = null)
+        {
+            // 限制 UI 更新频率 (100ms)
+            if (current < total && (DateTime.Now - _lastUiUpdate).TotalMilliseconds < 100)
+            {
+                return;
+            }
+            _lastUiUpdate = DateTime.Now;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => PerformUpdateUi(current, total, sw)));
+            }
+            else
+            {
+                PerformUpdateUi(current, total, sw);
+            }
+        }
+
+        private void PerformUpdateUi(long current, long total, Stopwatch? sw)
+        {
+            try
+            {
+                // 计算百分比
+                int percent = 0;
+                if (total > 0) percent = (int)((double)current / total * 100);
+                if (percent > 100) percent = 100;
+                if (percent < 0) percent = 0;
+
+                // 更新进度条
+                progress1.Value = percent;
+
+                // 更新速度
+                if (sw != null)
+                {
+                    double elapsedSeconds = sw.Elapsed.TotalSeconds;
+                    if (elapsedSeconds > 0.1)
+                    {
+                        double speedBytes = current / elapsedSeconds;
+                        double speedKb = speedBytes / 1024.0;
+                        double speedMb = speedBytes / 1024.0 / 1024.0;
+
+                        if (speedMb >= 1)
+                            label2.Text = $"速度：{speedMb:F1}MB/s";
+                        else
+                            label2.Text = $"速度：{speedKb:F0}KB/s";
+
+                        // 更新时间
+                        TimeSpan elapsed = sw.Elapsed;
+                        label3.Text = $"时间：{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+                    }
+                }
+
+                // 更新状态
+                if (percent == 100)
+                {
+                    input8.Text = "状态：操作完成";
+                }
+                else if (percent > 0)
+                {
+                    string currentStr = (current >= 1024 * 1024 * 1024)
+                        ? $"{(current / 1024.0 / 1024.0 / 1024.0):F2} GB"
+                        : $"{(current / 1024.0 / 1024.0):F0} MB";
+                    input8.Text = $"状态：{percent}% ({currentStr})";
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 更新进度 (无计时器版本)
+        /// </summary>
+        private void UpdateProgress(long current, long total)
+        {
+            UpdateProgress(current, total, null);
+        }
+
+        #endregion
         
         #endregion
     }
