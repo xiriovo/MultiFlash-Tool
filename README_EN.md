@@ -191,12 +191,14 @@ If this project helps you, please give it a Star ⭐
 
 ### Community
 - **QQ Group**: [MultiFlash TOOL](https://qm.qq.com/q/oCwGmTm5a2)
-- **Telegram**: [Join Channel](https://t.me/multiflash_tool) <!-- Replace with actual Telegram link -->
+- **Telegram**: [OPFlashTool](https://t.me/OPFlashTool)
 - **Discord**: [Join Server](https://discord.gg/your-invite) <!-- Replace with actual Discord link -->
 
 ### Developer Contact
-- **Maintainer**: [@xiriovo](https://github.com/xiriovo)
-- **Email**: multiflash.tool@example.com <!-- Replace with actual email -->
+- **Maintainers**: 
+  - [@xiriovo](https://github.com/xiriovo)
+  - [@Love-suannai](https://github.com/Love-suannai)
+- **Email**: 1708298587@qq.com
 
 ### Follow Us
 - **GitHub**: [Star this project](https://github.com/xiriovo/MultiFlash-Tool)

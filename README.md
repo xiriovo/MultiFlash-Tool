@@ -191,12 +191,14 @@
 
 ### 社区交流
 - **QQ 群**: [MultiFlash TOOL](https://qm.qq.com/q/oCwGmTm5a2)
-- **Telegram**: [加入频道](https://t.me/multiflash_tool) <!-- 请替换为实际的 Telegram 链接 -->
+- **Telegram**: [OPFlashTool](https://t.me/OPFlashTool)
 - **Discord**: [加入服务器](https://discord.gg/your-invite) <!-- 请替换为实际的 Discord 链接 -->
 
 ### 开发者联系
-- **项目维护者**: [@xiriovo](https://github.com/xiriovo)
-- **邮箱**: multiflash.tool@example.com <!-- 请替换为实际邮箱 -->
+- **项目维护者**: 
+  - [@xiriovo](https://github.com/xiriovo)
+  - [@Love-suannai](https://github.com/Love-suannai)
+- **邮箱**: 1708298587@qq.com
 
 ### 关注我们
 - **GitHub**: [Star 本项目](https://github.com/xiriovo/MultiFlash-Tool)

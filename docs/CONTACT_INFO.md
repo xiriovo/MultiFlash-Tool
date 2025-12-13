@@ -21,7 +21,8 @@
 ### 社区平台
 - **QQ 群**: `MultiFlash TOOL`
 - **QQ 群链接**: https://qm.qq.com/q/oCwGmTm5a2
-- **Telegram**: `待添加` <!-- 格式: https://t.me/multiflash_tool -->
+- **Telegram**: `OPFlashTool`
+- **Telegram 链接**: https://t.me/OPFlashTool
 - **Discord**: `待添加` <!-- 格式: https://discord.gg/xxxxx -->
 - **微信公众号**: `待添加` <!-- 如有 -->
 - **知乎**: `待添加` <!-- 如有 -->
@@ -31,9 +32,10 @@
 - **GitLab**: `待添加` <!-- 如有 -->
 
 ### 开发者信息
-- **项目维护者**: [@xiriovo](https://github.com/xiriovo)
-- **官方邮箱**: `待添加` <!-- 格式: contact@example.com -->
-- **技术支持邮箱**: `待添加` <!-- 格式: support@example.com -->
+- **项目维护者**: 
+  - [@xiriovo](https://github.com/xiriovo)
+  - [@Love-suannai](https://github.com/Love-suannai)
+- **官方邮箱**: 1708298587@qq.com
 
 ### 其他平台
 - **官方网站**: `待添加` <!-- 如有 -->
@@ -51,6 +53,11 @@
 - [ ] 项目主页（如有）
 
 ## 🔄 更新记录
+
+### 2024-12-13 16:08
+- 添加 Telegram 频道：https://t.me/OPFlashTool
+- 添加官方邮箱：1708298587@qq.com
+- 添加第二位维护者：@Love-suannai
 
 ### 2024-12-13 16:02
 - 添加 QQ 群链接：https://qm.qq.com/q/oCwGmTm5a2
