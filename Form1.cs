@@ -4665,9 +4665,10 @@ namespace OPFlashTool
         private void select1_SelectedIndexChanged(object sender, IntEventArgs e)
         {
             // 当下拉选项被选择时，导航到对应的分区
-            if (select1.SelectedValue != null)
+            // AntdUI Select 使用 Text 属性获取选中的值
+            string selectedPartitionName = select1.Text?.Trim() ?? string.Empty;
+            if (!string.IsNullOrEmpty(selectedPartitionName))
             {
-                string selectedPartitionName = select1.SelectedValue.ToString();
                 NavigateToPartition(selectedPartitionName);
             }
         }
@@ -4956,7 +4957,8 @@ namespace OPFlashTool
         private void ResetProgress()
         {
             if (InvokeRequired) { Invoke(new Action(ResetProgress)); return; }
-            progress1.Value = 0;
+            progress1.Value = 0f;
+            progress2.Value = 0f;
             label2.Text = "速度：0KB/s";
             label3.Text = "时间：00:00";
             input8.Text = "状态：等待操作...";
@@ -4988,14 +4990,15 @@ namespace OPFlashTool
         {
             try
             {
-                // 计算百分比
-                int percent = 0;
-                if (total > 0) percent = (int)((double)current / total * 100);
-                if (percent > 100) percent = 100;
+                // 计算百分比 (AntdUI Progress 使用 float 0-1)
+                float percent = 0;
+                if (total > 0) percent = (float)current / total;
+                if (percent > 1) percent = 1;
                 if (percent < 0) percent = 0;
 
-                // 更新进度条
+                // 更新进度条 (AntdUI Progress Value 是 0-1 的 float)
                 progress1.Value = percent;
+                progress2.Value = percent; // 同时更新第二个进度条
 
                 // 更新速度
                 if (sw != null)
@@ -5018,17 +5021,18 @@ namespace OPFlashTool
                     }
                 }
 
-                // 更新状态
-                if (percent == 100)
+                // 更新状态 (percent 是 0-1 的 float，需要转换为百分比显示)
+                int percentDisplay = (int)(percent * 100);
+                if (percentDisplay >= 100)
                 {
                     input8.Text = "状态：操作完成";
                 }
-                else if (percent > 0)
+                else if (percentDisplay > 0)
                 {
                     string currentStr = (current >= 1024 * 1024 * 1024)
                         ? $"{(current / 1024.0 / 1024.0 / 1024.0):F2} GB"
                         : $"{(current / 1024.0 / 1024.0):F0} MB";
-                    input8.Text = $"状态：{percent}% ({currentStr})";
+                    input8.Text = $"状态：{percentDisplay}% ({currentStr})";
                 }
             }
             catch { }
