@@ -37,16 +37,7 @@ namespace OPFlashTool
         private bool sessionLogFileInitialized = false;
         private System.Windows.Forms.Timer detectionTimer = null!;
         private CancellationTokenSource _cts = null!;
-        // 云端功能已移除 - 保留空实现以保持编译兼容性
-        private Cloud.CloudDownloadContext? cloudDownloadContext = null;
-        private readonly CloudChipService cloudChipService = new CloudChipService();
-        private List<ChipInfo> cloudChipList = new List<ChipInfo>();
-        private string? pendingDigestUrl;
-        private string? pendingSigUrl;
-        private string? pendingAuthBaseFolder;
-        private string? pendingAuthChipName;
-        private string? pendingDigestName;
-        private string? pendingSigName;
+        // 云端功能已移除 - 相关字段已清理
         private readonly DeviceManager deviceManager = new DeviceManager();
 
         private readonly List<LogEntry> logHistory = new List<LogEntry>();
@@ -1029,7 +1020,7 @@ namespace OPFlashTool
                 await flasher.RunFlashActionAsync(
                     port, progPath!, authType, checkbox4.Checked, authFiles.digest, authFiles.signature,
                     async (executor) => await operation(executor.Client),
-                    cloudDownloadContext, _cts.Token
+                    _cts.Token
                 );
             }
             catch (OperationCanceledException)
@@ -1144,36 +1135,21 @@ namespace OPFlashTool
 
         private bool IsCloudLoaderMode()
         {
-            string mode = select4?.Text?.Trim() ?? string.Empty;
-            return !string.IsNullOrEmpty(mode) && !string.Equals(mode, LocalLoaderOption, StringComparison.OrdinalIgnoreCase);
+            // 云端功能已移除
+            return false;
         }
 
         private void UpdateCloudInputDisplays()
         {
-            UpdateInputDisplayForMode(input2, showBlockedHint: true);
-            UpdateInputDisplayForMode(input3, showBlockedHint: false);
-            UpdateInputDisplayForMode(input4, showBlockedHint: false);
+            // 空实现
         }
+
         private void UpdateInputDisplayForMode(AntdUI.Input input, bool showBlockedHint)
         {
+            // 空实现，或根据需要保留基础逻辑
             if (input == null) return;
-            bool cloudMode = IsCloudLoaderMode();
             string stored = input.Tag as string ?? string.Empty;
-
-            if (!cloudMode)
-            {
-                input.Text = stored;
-                return;
-            }
-
-            if (showBlockedHint && !string.IsNullOrWhiteSpace(stored))
-            {
-                input.Text = CloudInputBlockedMessage;
-            }
-            else
-            {
-                input.Text = string.Empty;
-            }
+            input.Text = stored;
         }
 
         private void SetInputStoredPath(AntdUI.Input input, string? path, bool forceRefresh = true)
@@ -1229,203 +1205,18 @@ namespace OPFlashTool
                 string previousSelection = desiredSelection ?? select4.Text ?? string.Empty;
                 var options = new List<string> { LocalLoaderOption };
 
-                if (cloudChipList != null && cloudChipList.Count > 0)
-                {
-                    foreach (var chip in cloudChipList)
-                    {
-                        var chipName = chip?.ChipName;
-                        if (!string.IsNullOrWhiteSpace(chipName))
-                        {
-                            options.Add(chipName!);
-                        }
-                    }
-                }
+                // 云端列表已移除
 
                 select4.Items.Clear();
                 select4.Items.AddRange(options.Cast<object>().ToArray());
 
-                string normalizedSelection = (!string.IsNullOrWhiteSpace(previousSelection) && options.Contains(previousSelection))
-                    ? previousSelection
-                    : LocalLoaderOption;
+                string normalizedSelection = LocalLoaderOption;
 
                 select4.Text = normalizedSelection;
             }
             finally
             {
                 suppressSelect4Events = false;
-            }
-        }
-
-        private void SetCloudStatus(string text)
-        {
-            if (cloudDownloadContext?.StatusInput == null)
-            {
-                return;
-            }
-
-            var ctrl = cloudDownloadContext.StatusInput;
-            if (ctrl.InvokeRequired)
-            {
-                ctrl.Invoke(new Action(() => ctrl.Text = text));
-            }
-            else
-            {
-                ctrl.Text = text;
-            }
-        }
-
-        private async Task LoadCloudChipListAsync(bool forceRefresh = false)
-        {
-            if (!forceRefresh && cloudChipList.Count > 0)
-            {
-                return;
-            }
-
-            try
-            {
-                if (IsCloudLoaderMode())
-                {
-                    SetCloudStatus("云端引导：刷新列表...");
-                    Cloud.UpdateProgress(cloudDownloadContext, 0f);
-                }
-
-                var chips = await cloudChipService.GetChipsAsync();
-                if (chips == null || chips.Count == 0)
-                {
-                    AppendLog("云端引导列表为空，可能未登录或无权限", Color.Red);
-                    cloudChipList = new List<ChipInfo>();
-                    RefreshSelect4Items();
-                    return;
-                }
-
-                cloudChipList = chips;
-                RefreshSelect4Items(select4?.Text);
-                AppendLog($"云端引导列表已更新，共 {chips.Count} 个", Color.Green);
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"云端引导列表获取失败: {ex.Message}", Color.Red);
-            }
-            finally
-            {
-                if (IsCloudLoaderMode())
-                {
-                    SetCloudStatus("云端引导：等待下载");
-                }
-            }
-        }
-
-        private async Task DownloadCloudLoaderAsync(string chipName)
-        {
-            if (string.IsNullOrWhiteSpace(chipName) || string.Equals(chipName, LocalLoaderOption, StringComparison.OrdinalIgnoreCase))
-            {
-                ShowWarnMessage("请先选择云端引导型号");
-                return;
-            }
-
-            try
-            {
-                SetCloudStatus($"云端引导：获取 {chipName} 下载地址...");
-                Cloud.UpdateProgress(cloudDownloadContext, 0f);
-                ChipInfo chipInfo = cloudChipList.FirstOrDefault(c => c != null && c.ChipName.Equals(chipName, StringComparison.OrdinalIgnoreCase));
-                string downloadUrl = chipInfo?.DownloadUrl ?? string.Empty;
-
-                ChipUrls? chipUrls = null;
-                if (string.IsNullOrWhiteSpace(downloadUrl))
-                {
-                    chipUrls = await cloudChipService.GetChipUrlsAsync(chipName);
-                    downloadUrl = chipUrls?.LoaderUrl ?? string.Empty;
-                }
-                else
-                {
-                    var extraUrls = await cloudChipService.GetChipUrlsAsync(chipName);
-                    if (extraUrls != null)
-                    {
-                        chipUrls = extraUrls;
-                        if (string.IsNullOrWhiteSpace(downloadUrl))
-                        {
-                            downloadUrl = extraUrls.LoaderUrl ?? string.Empty;
-                        }
-                    }
-                }
-
-                if (string.IsNullOrWhiteSpace(downloadUrl))
-                {
-                    ShowErrorMessage("未获取到下载地址，请检查权限或网络");
-                    return;
-                }
-                // 修复2: 设置文件夹为系统+隐藏属性，使其完全不可见
-                DirectoryInfo dirInfo = new DirectoryInfo(targetFolder);
-                dirInfo.Attributes |= FileAttributes.Hidden | FileAttributes.System;
-                // AppendLog($"设置文件夹 {targetFolder} 为隐藏+系统属性", Color.Green);
-
-                string baseFolder = Path.Combine(targetFolder, "cloud_loader", SanitizeFileName(chipName));
-                Directory.CreateDirectory(baseFolder);
-
-                var progress = new Progress<DownloadProgress>(p =>
-                {
-                    Cloud.UpdateProgress(cloudDownloadContext, (float)(p.Percent / 100.0));
-                    Cloud.UpdateDownloadSpeed(cloudDownloadContext, (long)p.BytesPerSecond, 1);
-                });
-
-                string? loaderNameFromApi = chipUrls?.LoaderName;
-                string? loaderDescription = chipInfo?.Description;
-                string loaderFileName = !string.IsNullOrWhiteSpace(loaderNameFromApi)
-                    ? SanitizeFileName(loaderNameFromApi!)
-                    : (!string.IsNullOrWhiteSpace(loaderDescription)
-                        ? SanitizeFileName(loaderDescription!)
-                        : SanitizeFileName(Path.GetFileName(downloadUrl)));
-
-                string loaderPath = Path.Combine(baseFolder, loaderFileName);
-
-                SetCloudStatus($"云端引导：下载 {chipName} 引导...");
-                var downloadedLoader = await cloudChipService.DownloadFileAsync(downloadUrl, loaderPath, progress);
-                if (string.IsNullOrWhiteSpace(downloadedLoader))
-                {
-                    ShowErrorMessage("引导下载失败，请重试");
-                    return;
-                }
-                SetInputStoredPath(input2, downloadedLoader);
-
-                ClearPendingAuthDownloads();
-                pendingAuthBaseFolder = baseFolder;
-                pendingAuthChipName = chipName;
-                pendingDigestUrl = chipUrls?.DigestUrl ?? string.Empty;
-                pendingSigUrl = chipUrls?.SigUrl ?? string.Empty;
-                string? digestNameFromApi = chipUrls?.DigestName;
-                string? sigNameFromApi = chipUrls?.SigName;
-                pendingDigestName = !string.IsNullOrWhiteSpace(digestNameFromApi) ? SanitizeFileName(digestNameFromApi!) : "digest.bin";
-                pendingSigName = !string.IsNullOrWhiteSpace(sigNameFromApi) ? SanitizeFileName(sigNameFromApi!) : "sig.bin";
-
-                SetInputStoredPath(input3, null);
-                SetInputStoredPath(input4, null);
-
-                if (HasPendingAuthDownloads())
-                {
-                    checkbox5.Checked = true;
-                    select2.Text = "VIP模式";
-                    AppendLog("检测到云端提供 VIP Digest/Sign，已自动切换为 VIP 模式", Color.Blue);
-                }
-
-                if (GetAuthType() == AuthType.Vip && !HasPendingAuthDownloads())
-                {
-                    AppendLog("警告: 该云端引导未提供 VIP 所需的 Digest/Sign，需手动选择文件", Color.OrangeRed);
-                    ShowWarnMessage("未找到云端 Digest/Sign，VIP 需手动选择认证文件");
-                }
-
-                if (HasPendingAuthDownloads())
-                {
-                    AppendLog("引导下载完成，Digest/Sign 将在进入 Firehose 后自动获取", Color.Blue);
-                }
-
-                Cloud.UpdateProgress(cloudDownloadContext, 1f);
-                SetCloudStatus($"云端引导：{chipName} 下载完成");
-                AppendLog($"云端引导已准备完成：{chipName}", Color.Green);
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"云端引导下载异常: {ex.Message}", Color.Red);
-                ShowErrorMessage($"云端引导下载异常: {ex.Message}");
             }
         }
 
@@ -1443,107 +1234,7 @@ namespace OPFlashTool
             return name;
         }
 
-        private async Task<bool> EnsureDeferredAuthFilesAsync()
-        {
-            bool hasDigestPath = InputHasStoredPath(input3);
-            bool hasSigPath = InputHasStoredPath(input4);
-
-            if (GetAuthType() == AuthType.Vip && !HasPendingAuthDownloads() && (!hasDigestPath || !hasSigPath))
-            {
-                ShowErrorMessage("未获取到 VIP 验证文件 (Digest/Sign)，请重试云端下载或手动选择文件");
-                AppendLog("缺少 VIP 验证文件，已中止刷写", Color.Red);
-                return false;
-            }
-
-            if (!HasPendingAuthDownloads()) return true;
-            if (GetAuthType() != AuthType.Vip) return true;
-
-            try
-            {
-                AppendLog("尝试获取 VIP 验证文件 (地址已隐藏)", Color.Black);
-                Directory.CreateDirectory(pendingAuthBaseFolder);
-
-                var progress = new Progress<DownloadProgress>(p =>
-                {
-                    Cloud.UpdateProgress(cloudDownloadContext, (float)(p.Percent / 100.0));
-                    Cloud.UpdateDownloadSpeed(cloudDownloadContext, (long)p.BytesPerSecond, 1);
-                });
-
-                if (!string.IsNullOrWhiteSpace(pendingDigestUrl) && !InputHasStoredPath(input3))
-                {
-                    string digestName = string.IsNullOrWhiteSpace(pendingDigestName) ? "digest.bin" : pendingDigestName;
-                    string digestPath = Path.Combine(pendingAuthBaseFolder, digestName);
-                    SetCloudStatus("云端引导：下载 Digest...");
-                    var digest = await cloudChipService.DownloadFileAsync(pendingDigestUrl, digestPath, progress);
-                    if (!string.IsNullOrEmpty(digest))
-                    {
-                        SetInputStoredPath(input3, digest);
-                        AppendLog($"Digest 已下载: {digestName}", Color.Green);
-                    }
-                    else
-                    {
-                        AppendLog("Digest 下载失败", Color.OrangeRed);
-                    }
-                }
-
-                if (!string.IsNullOrWhiteSpace(pendingSigUrl) && !InputHasStoredPath(input4))
-                {
-                    string sigName = string.IsNullOrWhiteSpace(pendingSigName) ? "sig.bin" : pendingSigName;
-                    string sigPath = Path.Combine(pendingAuthBaseFolder, sigName);
-                    SetCloudStatus("云端引导：下载 Signature...");
-                    var sig = await cloudChipService.DownloadFileAsync(pendingSigUrl, sigPath, progress);
-                    if (!string.IsNullOrEmpty(sig))
-                    {
-                        SetInputStoredPath(input4, sig);
-                        AppendLog($"Sign 已下载: {sigName}", Color.Green);
-                    }
-                    else
-                    {
-                        AppendLog("Sign 下载失败", Color.OrangeRed);
-                    }
-                }
-
-                bool digestMissing = !string.IsNullOrWhiteSpace(pendingDigestUrl) && !InputHasStoredPath(input3);
-                bool sigMissing = !string.IsNullOrWhiteSpace(pendingSigUrl) && !InputHasStoredPath(input4);
-
-                if (string.IsNullOrWhiteSpace(pendingDigestUrl) || InputHasStoredPath(input3)) pendingDigestUrl = null;
-                if (string.IsNullOrWhiteSpace(pendingSigUrl) || InputHasStoredPath(input4)) pendingSigUrl = null;
-
-                if (!HasPendingAuthDownloads())
-                {
-                    pendingAuthBaseFolder = null;
-                    pendingAuthChipName = null;
-                    pendingDigestName = null;
-                    pendingSigName = null;
-                }
-
-                if (GetAuthType() == AuthType.Vip && (digestMissing || sigMissing || !InputHasStoredPath(input3) || !InputHasStoredPath(input4)))
-                {
-                    ShowErrorMessage("未获取到 VIP 验证文件 (Digest/Sign)，请重试云端下载或手动选择文件");
-                    AppendLog("缺少 VIP 验证文件，已中止刷写", Color.Red);
-                    return false;
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"云端引导后续文件下载失败: {ex.Message}", Color.Red);
-                return false;
-            }
-        }
-
-        private Func<FlashTaskExecutor, Task> WithDeferredAuthDownload(Func<FlashTaskExecutor, Task> inner)
-        {
-            return async executor =>
-            {
-                var ok = await EnsureDeferredAuthFilesAsync();
-                if (!ok) throw new InvalidOperationException("缺少VIP认证文件");
-                await inner(executor);
-            };
-        }
-
-        private async void select4_SelectedIndexChanged(object sender, IntEventArgs e)
+        private void select4_SelectedIndexChanged(object sender, IntEventArgs e)
         {
             if (suppressSelect4Events)
             {
@@ -1551,81 +1242,12 @@ namespace OPFlashTool
             }
 
             UpdateCloudLoaderUiState();
+            // 始终不是云端模式
             if (!IsCloudLoaderMode())
             {
-                ClearCloudLoaderSelections();
+                // ClearCloudLoaderSelections() 已移除
                 return;
             }
-
-            await HandleCloudLoaderSelectionAsync();
-        }
-
-        private async Task HandleCloudLoaderSelectionAsync()
-        {
-            string selectedChip = select4?.Text?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(selectedChip) || string.Equals(selectedChip, LocalLoaderOption, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            bool hasChip = cloudChipList.Any(c => c != null && c.ChipName.Equals(selectedChip, StringComparison.OrdinalIgnoreCase));
-            if (!hasChip)
-            {
-                await LoadCloudChipListAsync(forceRefresh: true);
-                hasChip = cloudChipList.Any(c => c != null && c.ChipName.Equals(selectedChip, StringComparison.OrdinalIgnoreCase));
-                if (!hasChip)
-                {
-                    ShowWarnMessage($"云端列表中找不到 {selectedChip}，请重试");
-                    return;
-                }
-            }
-
-            await DownloadCloudLoaderAsync(selectedChip);
-        }
-
-        private void ClearCloudLoaderSelections()
-        {
-            try
-            {
-                string cloudRoot = Path.GetFullPath(Path.Combine(targetFolder, "cloud_loader"));
-
-                void ClearIfCloudPath(AntdUI.Input control)
-                {
-                    if (control == null) return;
-                    var value = GetInputStoredPath(control);
-                    if (string.IsNullOrWhiteSpace(value)) return;
-                    var fullPath = Path.GetFullPath(value);
-                    if (fullPath.StartsWith(cloudRoot, StringComparison.OrdinalIgnoreCase))
-                    {
-                        SetInputStoredPath(control, null);
-                    }
-                }
-
-                ClearIfCloudPath(input2);
-                ClearIfCloudPath(input3);
-                ClearIfCloudPath(input4);
-                ClearPendingAuthDownloads();
-            }
-            catch
-            {
-                // ignore cleanup errors
-            }
-        }
-
-        private void ClearPendingAuthDownloads()
-        {
-            pendingDigestUrl = null;
-            pendingSigUrl = null;
-            pendingAuthBaseFolder = null;
-            pendingAuthChipName = null;
-            pendingDigestName = null;
-            pendingSigName = null;
-        }
-
-        private bool HasPendingAuthDownloads()
-        {
-            return !string.IsNullOrWhiteSpace(pendingAuthBaseFolder)
-                   && (!string.IsNullOrWhiteSpace(pendingDigestUrl) || !string.IsNullOrWhiteSpace(pendingSigUrl));
         }
 
         /// <summary>
@@ -3142,13 +2764,13 @@ namespace OPFlashTool
             var progPath = await EnsureProgrammerPathAsync();
             if (string.IsNullOrEmpty(progPath)) return;
 
-            await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, WithDeferredAuthDownload(async (executor) =>
+            await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, async (executor) =>
             {
                 AppendLog($"执行: {actionName}...", Color.Black);
                 executor.Client.SendXmlCommand(xml);
                 AppendLog("指令已发送", Color.Green);
                 await Task.Delay(1000); // Give it a moment
-            }), cloudDownloadContext, _cts.Token);
+            }, _cts.Token);
         }
 
         private async Task RunEdlEraseAsync(string partitionName)
@@ -3171,7 +2793,7 @@ namespace OPFlashTool
             var progPath = await EnsureProgrammerPathAsync();
             if (string.IsNullOrEmpty(progPath)) return;
 
-            await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, WithDeferredAuthDownload(async (executor) =>
+            await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, async (executor) =>
             {
                 AppendLog($"正在查找分区: {partitionName}...", Color.Black);
                 var partitions = await executor.GetPartitionsAsync(_cts.Token);
@@ -3199,7 +2821,7 @@ namespace OPFlashTool
                     }
                     AppendLog($"未找到分区: {partitionName}", Color.Red);
                 }
-            }), cloudDownloadContext, _cts.Token);
+            }, _cts.Token);
         }
 
         private List<PartitionInfo> GetSelectedOrCheckedPartitions()
@@ -3266,7 +2888,7 @@ namespace OPFlashTool
             var progPath = await EnsureProgrammerPathAsync();
             if (string.IsNullOrEmpty(progPath)) return;
 
-            bool success = await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, WithDeferredAuthDownload(async (executor) =>
+            bool success = await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, async (executor) =>
             {
                 foreach (var part in partitions)
                 {
@@ -3278,7 +2900,7 @@ namespace OPFlashTool
                     AppendLog($"正在读取分区: {part.Name} (LUN{part.Lun}) -> {fileName}", Color.Blue);
                     await executor.ReadPartitionAsync(part, savePath, _cts.Token);
                 }
-            }), cloudDownloadContext, _cts.Token);
+            }, _cts.Token);
 
             if (success)
             {
@@ -3318,7 +2940,7 @@ namespace OPFlashTool
                 checkbox4.Checked, 
                 digest,
                 signature,
-                WithDeferredAuthDownload(async (executor) =>
+                async (executor) =>
                 {
                     AppendLog("正在读取分区表...", Color.Black);
                     var partitions = await executor.GetPartitionsAsync(_cts.Token);
@@ -3345,8 +2967,7 @@ namespace OPFlashTool
                         XmlPartitionParser.GenerateXml(partitions, xmlPath);
                         AppendLog($"已生成分区表 XML: {xmlPath}", Color.Green);
                     }
-                }),
-                cloudDownloadContext,
+                },
                 _cts.Token
             );
 
@@ -3566,7 +3187,7 @@ namespace OPFlashTool
                     var progPath = await EnsureProgrammerPathAsync();
                     if (string.IsNullOrEmpty(progPath)) return;
 
-                    bool success = await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, WithDeferredAuthDownload(async (executor) =>
+                    bool success = await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, async (executor) =>
                     {
                         var task = new FlashPartitionInfo
                         {
@@ -3600,7 +3221,7 @@ namespace OPFlashTool
                             AppendLog($"自动激活失败: {ex.Message}", Color.Orange);
                         }
 
-                    }), cloudDownloadContext, _cts.Token);
+                    }, _cts.Token);
 
                     if (success)
                     {
@@ -3713,14 +3334,14 @@ namespace OPFlashTool
             var progPath = await EnsureProgrammerPathAsync();
             if (string.IsNullOrEmpty(progPath)) return;
 
-            bool success = await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, WithDeferredAuthDownload(async (executor) =>
+            bool success = await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, async (executor) =>
             {
                 foreach (var part in partitions)
                 {
                     if (_cts.Token.IsCancellationRequested) break;
                     await executor.ErasePartitionAsync(part, _cts.Token);
                 }
-            }), cloudDownloadContext, _cts.Token);
+            }, _cts.Token);
 
             if (success && checkbox3.Checked)
             {
@@ -3941,23 +3562,22 @@ namespace OPFlashTool
                 return (true, digest, signature);
             }
 
-            // 若启用云端引导但尚未下载，引导一次自动下载，避免用户只选择型号未点下载
-            if (IsCloudLoaderMode() && !InputHasStoredPath(input2))
+            var ready = true; // 云端逻辑移除，默认ready (如果文件已选择)
+            
+            // 简单检查文件是否选择
+            if (string.IsNullOrEmpty(digest) || string.IsNullOrEmpty(signature))
             {
-                var chipName = GetSelectedCloudChipName();
-                if (string.IsNullOrWhiteSpace(chipName))
+                // 如果是 VIP 模式且没有选择文件，提示用户
+                // 但这里不做强制检查，让后续逻辑处理，或者在这里返回 false
+                // 根据之前的 EnsureDeferredAuthFilesAsync 逻辑，如果没下载且没选择，会返回 false
+                // 这里我们假设用户必须手动选择
+                if (string.IsNullOrEmpty(digest) || string.IsNullOrEmpty(signature))
                 {
-                    ShowWarnMessage("云端模式：请先在下拉列表选择芯片型号");
-                    return (false, digest, signature);
+                    ShowWarnMessage("VIP 模式需要选择 Digest 和 Signature 文件");
+                    ready = false;
                 }
-
-                await DownloadCloudLoaderAsync(chipName!);
-                // 重新取一次已下载文件的路径和待下载的 digest/sign
-                GetVipAuthFiles(out digest, out signature);
             }
 
-            var ready = await EnsureDeferredAuthFilesAsync();
-            GetVipAuthFiles(out digest, out signature); // 刷新下载后的路径
             return (ready, digest, signature);
         }
 
@@ -4026,31 +3646,13 @@ namespace OPFlashTool
             return null;
         }
 
-        // Ensure programmer path is ready; if cloud模式且未下载则自动下载后返回
+        // Ensure programmer path is ready
         private async Task<string?> EnsureProgrammerPathAsync()
         {
             var path = GetProgrammerPath();
             if (!string.IsNullOrEmpty(path)) return path;
 
-            if (IsCloudLoaderMode())
-            {
-                var chipName = GetSelectedCloudChipName();
-                if (string.IsNullOrWhiteSpace(chipName))
-                {
-                    ShowWarnMessage("云端模式：请先在下拉列表选择芯片");
-                    return null;
-                }
-
-                // 自动触发云端下载
-                await DownloadCloudLoaderAsync(chipName!);
-                path = GetProgrammerPath();
-                if (!string.IsNullOrEmpty(path)) return path;
-
-                ShowErrorMessage("云端引导未成功下载，请重试");
-                return null;
-            }
-
-            ShowWarnMessage("请先选择本地或云端引导文件");
+            ShowWarnMessage("请先选择本地引导文件");
             return null;
         }
         private readonly List<FastbootListEntry> allFastbootItems = new List<FastbootListEntry>();
@@ -5287,7 +4889,7 @@ namespace OPFlashTool
             var progPath = await EnsureProgrammerPathAsync();
             if (string.IsNullOrEmpty(progPath)) return;
 
-            await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, WithDeferredAuthDownload(async (executor) =>
+            await flasher.RunFlashActionAsync(port, progPath!, authType, checkbox4.Checked, digest, signature, async (executor) =>
             {
                 // 根据配置后的存储类型自动识别
                 string type = executor.Client.StorageType; // "ufs" or "emmc"
@@ -5322,7 +4924,7 @@ namespace OPFlashTool
                 {
                     AppendLog($"激活 LUN{targetLun} 失败", Color.Red);
                 }
-            }), cloudDownloadContext, _cts.Token);
+            }, _cts.Token);
         }
 
         private void eDL重启到系统ToolStripMenuItem_Click(object sender, EventArgs e)

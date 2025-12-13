@@ -78,20 +78,37 @@ namespace OPFlashTool.Strategies
                 {
                     byte[]? data = null;
 
-                    // 1. 尝试使用 gpt_backup0.bin 伪装 (即使是读取主分区表)
-                    // 某些设备拦截 gpt_main0.bin 但放行 gpt_backup0.bin
+                    // 0. [新增] 尝试使用 gpt_main0.bin 伪装 (对应 LUN 0-5)
+                    // SM8550+ 设备可能只允许 gpt_main0.bin 读取 LBA 0-34
                     try 
                     {
                         data = await client.ReadGptPacketAsync(
                             lun.ToString(), 
                             0, 
                             sectorsToRead, 
-                            "BackupGPT", 
-                            "gpt_backup0.bin", 
+                            "gpt_main0.bin", 
+                            "gpt_main0.bin", 
                             ct
                         );
                     }
                     catch {}
+
+                    // 1. 尝试使用 gpt_backup0.bin 伪装
+                    if (data == null)
+                    {
+                        try 
+                        {
+                            data = await client.ReadGptPacketAsync(
+                                lun.ToString(), 
+                                0, 
+                                sectorsToRead, 
+                                "BackupGPT", 
+                                "gpt_backup0.bin", 
+                                ct
+                            );
+                        }
+                        catch {}
+                    }
 
                     // 2. 如果失败，尝试使用 ssd 伪装
                     if (data == null)
@@ -123,16 +140,31 @@ namespace OPFlashTool.Strategies
                             {
                                 log($"[GPT] 尝试读取 Backup GPT @ {startSector} (Total: {totalSectors})...");
                                 
-                                // 尝试 Backup GPT (同样先试 gpt_main0.bin 伪装，再试 ssd)
-                                // 注意：Backup GPT 通常没有特定的文件名白名单，ssd 成功率更高
-                                data = await client.ReadGptPacketAsync(
-                                    lun.ToString(),
-                                    startSector,
-                                    sectorsToRead,
-                                    "ssd", 
-                                    "ssd",
-                                    ct
-                                );
+                                // 尝试 Backup GPT (先试 gpt_main0.bin，再试 ssd)
+                                try
+                                {
+                                    data = await client.ReadGptPacketAsync(
+                                        lun.ToString(),
+                                        startSector,
+                                        sectorsToRead,
+                                        "gpt_main0.bin", 
+                                        "gpt_main0.bin",
+                                        ct
+                                    );
+                                }
+                                catch {}
+
+                                if (data == null)
+                                {
+                                    data = await client.ReadGptPacketAsync(
+                                        lun.ToString(),
+                                        startSector,
+                                        sectorsToRead,
+                                        "ssd", 
+                                        "ssd",
+                                        ct
+                                    );
+                                }
                             }
                         }
                         else

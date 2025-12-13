@@ -58,7 +58,6 @@ namespace OPFlashTool.Qualcomm
             string userDigestPath, 
             string userSignPath,
             Func<FlashTaskExecutor, Task> flashAction,
-            Cloud.CloudDownloadContext? context,  // 云端功能已移除
             CancellationToken ct = default,
             Func<string, string> inputRequestCallback = null,
             string preferredStorageType = "Auto")
@@ -143,7 +142,7 @@ namespace OPFlashTool.Qualcomm
                     // 1. Sahara 引导
                     if (!skipLoader)
                     {
-                        var sahara = new SaharaClient(port, _log, context);
+                        var sahara = new SaharaClient(port, _log);
                         string finalLoader = userProgPath;
                         
                         // A. 策略：用户没选文件 -> 尝试自动从设备读取 ID 并查找
@@ -342,7 +341,7 @@ namespace OPFlashTool.Qualcomm
                     if (flashAction != null)
                     {
                         // 创建执行器
-                        var executor = new FlashTaskExecutor(firehose, strategy, _log, firehose.SectorSize, context);
+                        var executor = new FlashTaskExecutor(firehose, strategy, _log, firehose.SectorSize);
                         
                         // [核心修复] 正确挂载进度事件
                         // 将底层 executor 的事件转发给 UI 传进来的 progressCallback
@@ -426,7 +425,7 @@ namespace OPFlashTool.Qualcomm
             string userSignPath)
         {
             AuthType auth = enableVip ? AuthType.Vip : AuthType.Standard;
-            return await RunFlashActionAsync(portName, userProgPath, auth, false, userDigestPath, userSignPath, null, null);
+            return await RunFlashActionAsync(portName, userProgPath, auth, false, userDigestPath, userSignPath, null);
         }
     }
 }

@@ -94,16 +94,14 @@ namespace OPFlashTool.Qualcomm
     {
         private SerialPort _port;
         private Action<string> _log;
-        private object? _context;  // 云端功能已移除
         
         // 缓冲区设置，适配 USB 包大小
         private const int MAX_BUFFER_SIZE = 4096;
 
-        public SaharaClient(SerialPort port, Action<string> logger = null, object? context = null)
+        public SaharaClient(SerialPort port, Action<string> logger = null)
         {
             _port = port;
             _log = logger ?? Console.WriteLine;
-            _context = context;
         }
 
         private void UpdateProgress(long current, long total, Stopwatch sw = null)

@@ -15,7 +15,6 @@ namespace OPFlashTool.Services
         public FirehoseClient Client { get; }
         private Action<string> _log;
         private IDeviceStrategy _strategy; 
-        private Cloud.CloudDownloadContext? _context;  // 云端功能已移除
 
         public int SectorSize { get; }
 
@@ -24,13 +23,12 @@ namespace OPFlashTool.Services
         public event Action<int, int> TaskProgressChanged; // 总任务进度 (当前个/总个数)
         public event Action<string> StatusChanged; // 状态栏文字
 
-        public FlashTaskExecutor(FirehoseClient client, IDeviceStrategy strategy, Action<string> log, int sectorSize, Cloud.CloudDownloadContext? context)
+        public FlashTaskExecutor(FirehoseClient client, IDeviceStrategy strategy, Action<string> log, int sectorSize)
         {
             Client = client;
             _strategy = strategy;
             _log = log;
             SectorSize = sectorSize;
-            _context = context;
         }
 
         // 云端功能已移除 - 进度通过事件通知
@@ -308,13 +306,6 @@ namespace OPFlashTool.Services
         private void UpdateStatus(string msg)
         {
             StatusChanged?.Invoke(msg);
-            if (_context != null && _context.StatusInput != null)
-            {
-                if (_context.StatusInput.InvokeRequired)
-                    _context.StatusInput.Invoke(new Action(() => _context.StatusInput.Text = msg));
-                else
-                    _context.StatusInput.Text = msg;
-            }
         }
 
         // 批量擦除任务
