@@ -187,6 +187,7 @@ namespace OPFlashTool
                             {
                                 AppendLog($"无法打开 Q 群链接: {ex.Message}", Color.Red);
                             }
+                            return true;
                         }
                     });
                 }
