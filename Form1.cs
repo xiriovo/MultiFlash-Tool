@@ -324,6 +324,455 @@ namespace OPFlashTool
 
         private Payload? currentPayload;
 
+        // ============== Fastboot 增强功能 (借鉴 libxzr/FastbootEnhance) ==============
+        private FastbootService _fastbootService;
+        private FastbootUIHelper _fastbootUIHelper;
+        private FastbootDeviceData _currentFastbootData;
+        private PayloadFlasher _payloadFlasher;
+        private LogicalPartitionManager _logicalPartitionManager;
+        private VabManager _vabManager;
+
+        /// <summary>
+        /// 初始化 Fastboot 增强服务
+        /// </summary>
+        private void InitializeFastbootEnhancedServices()
+        {
+            _fastbootService = new FastbootService(FastbootPath);
+            _fastbootService.OnLog += (msg) => AppendFastbootLog(msg);
+            _fastbootService.OnProgress += (percent) => 
+            {
+                this.BeginInvoke(new Action(() =>
+                {
+                    // 可以更新进度条
+                }));
+            };
+            _fastbootService.OnDeviceDataLoaded += (data) =>
+            {
+                _currentFastbootData = data;
+                this.BeginInvoke(new Action(() => UpdateFastbootDeviceInfo(data)));
+            };
+
+            _fastbootUIHelper = new FastbootUIHelper(_fastbootService, AppendFastbootLog, 
+                (msg, color) => AppendLog(msg, color));
+            _fastbootUIHelper.OnDevicesChanged += (devices) =>
+            {
+                // 设备列表变化时更新 UI
+            };
+            _fastbootUIHelper.OnDeviceDataLoaded += (data) =>
+            {
+                _currentFastbootData = data;
+            };
+
+            _payloadFlasher = new PayloadFlasher(_fastbootService);
+            _payloadFlasher.OnLog += (msg) => AppendFastbootLog(msg);
+            _payloadFlasher.OnProgress += (current, total, partition) =>
+            {
+                this.BeginInvoke(new Action(() =>
+                {
+                    var percent = total > 0 ? (current * 100 / total) : 0;
+                    AppendFastbootLog($"[{current}/{total}] {partition} ({percent}%)");
+                }));
+            };
+
+            // 初始化任务栏进度
+            TaskbarProgressHelper.Initialize(this.Handle);
+        }
+
+        /// <summary>
+        /// 更新 Fastboot 设备信息显示
+        /// </summary>
+        private void UpdateFastbootDeviceInfo(FastbootDeviceData data)
+        {
+            if (data == null) return;
+
+            // 显示设备信息
+            AppendFastbootLog("========== 设备信息 ==========");
+            AppendFastbootLog($"设备型号: {data.Product ?? "Unknown"}");
+            AppendFastbootLog($"序列号: {data.SerialNo ?? "Unknown"}");
+            AppendFastbootLog($"安全启动: {(data.Secure ? "已启用" : "已禁用")}");
+            AppendFastbootLog($"Bootloader: {(data.Unlocked ? "已解锁" : "已锁定")}");
+            
+            if (data.HasSlot)
+            {
+                AppendFastbootLog($"A/B 分区: 是 (当前槽位: {data.CurrentSlot?.ToUpper()})");
+            }
+            
+            AppendFastbootLog($"FastbootD 模式: {(data.IsFastbootD ? "是" : "否")}");
+            
+            if (data.MaxDownloadSize > 0)
+            {
+                AppendFastbootLog($"最大下载: {FastbootDeviceData.FormatSize(data.MaxDownloadSize)}");
+            }
+
+            // VAB 状态检查
+            var vabStatus = VabManager.ParseStatus(data.SnapshotUpdateStatus);
+            if (vabStatus != VabManager.VabStatus.None && vabStatus != VabManager.VabStatus.Unknown)
+            {
+                AppendFastbootLog($"⚠ VAB 状态: {VabManager.GetStatusDescription(vabStatus)}");
+            }
+
+            if (data.HasCowPartitions)
+            {
+                AppendFastbootLog($"⚠ 检测到 {data.CowPartitions.Count} 个 COW 分区");
+            }
+
+            AppendFastbootLog($"分区总数: {data.PartitionSizes.Count}");
+            AppendFastbootLog($"逻辑分区: {data.LogicalPartitions.Count}");
+            AppendFastbootLog("================================");
+        }
+
+        /// <summary>
+        /// 检查 VAB 状态并警告用户
+        /// </summary>
+        private async Task<bool> CheckVabStatusAndWarnAsync()
+        {
+            if (_currentFastbootData == null) return true;
+
+            var (shouldWarn, message, level) = VabManager.CheckVabStatus(_currentFastbootData);
+            
+            if (!shouldWarn) return true;
+
+            var title = level == VabWarningLevel.Critical ? "⚠️ 危险警告" : "⚠️ 警告";
+            var icon = level == VabWarningLevel.Critical ? MessageBoxIcon.Error : MessageBoxIcon.Warning;
+
+            var result = MessageBox.Show(
+                message + "\n\n是否继续?",
+                title,
+                MessageBoxButtons.YesNo,
+                icon);
+
+            return result == DialogResult.Yes;
+        }
+
+        /// <summary>
+        /// 检查 vbmeta 分区并询问用户
+        /// </summary>
+        private (bool proceed, bool disableVerity) CheckVbmetaPartition(string partitionName)
+        {
+            if (!VbmetaHandler.IsVbmetaPartition(partitionName))
+            {
+                return (true, false);
+            }
+
+            var result = MessageBox.Show(
+                VbmetaHandler.GetWarningMessage() + "\n\n点击 '是' 禁用验证，点击 '否' 正常刷入",
+                "vbmeta 分区检测",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            return (true, result == DialogResult.Yes);
+        }
+
+        /// <summary>
+        /// 使用增强服务读取设备信息
+        /// </summary>
+        private async Task<FastbootDeviceData> ReadFastbootDeviceDataEnhancedAsync()
+        {
+            try
+            {
+                AppendFastbootLog("正在读取设备信息 (增强模式)...");
+                
+                // 获取设备序列号
+                var devices = await _fastbootService.GetDevicesAsync();
+                if (devices.Count == 0)
+                {
+                    AppendFastbootLog("未检测到 Fastboot 设备");
+                    return null;
+                }
+
+                var serial = devices[0].serial;
+                AppendFastbootLog($"检测到设备: {serial} ({(devices[0].isFastbootD ? "FastbootD" : "Fastboot")})");
+
+                // 连接并加载数据
+                var connected = await _fastbootService.ConnectAsync(serial);
+                if (!connected)
+                {
+                    AppendFastbootLog("连接设备失败");
+                    return null;
+                }
+
+                _currentFastbootData = _fastbootService.DeviceData;
+
+                // 初始化 VAB 和逻辑分区管理器
+                if (_currentFastbootData != null)
+                {
+                    _vabManager = new VabManager(FastbootPath, serial);
+                    _logicalPartitionManager = new LogicalPartitionManager(FastbootPath, serial, _currentFastbootData);
+                }
+
+                return _currentFastbootData;
+            }
+            catch (Exception ex)
+            {
+                AppendFastbootLog($"读取设备信息失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 使用增强服务刷入分区 (支持 vbmeta 特殊处理)
+        /// </summary>
+        private async Task<bool> FlashPartitionEnhancedAsync(string partition, string imagePath)
+        {
+            if (_fastbootService == null || !_fastbootService.IsConnected)
+            {
+                AppendFastbootLog("设备未连接");
+                return false;
+            }
+
+            // 检查 VAB 状态
+            if (!await CheckVabStatusAndWarnAsync())
+            {
+                return false;
+            }
+
+            // 检查 vbmeta
+            var (proceed, disableVerity) = CheckVbmetaPartition(partition);
+            if (!proceed) return false;
+
+            var (success, message) = await _fastbootService.FlashPartitionAsync(
+                partition, imagePath, disableVerity, disableVerity);
+
+            return success;
+        }
+
+        /// <summary>
+        /// Payload 直接刷入 (FastbootD 模式)
+        /// </summary>
+        private async Task FlashPayloadDirectAsync(string payloadPath)
+        {
+            if (_payloadFlasher == null)
+            {
+                AppendFastbootLog("Payload 刷入服务未初始化");
+                return;
+            }
+
+            // 检查 VAB 状态
+            if (!await CheckVabStatusAndWarnAsync())
+            {
+                return;
+            }
+
+            // 询问是否禁用 vbmeta 验证
+            var disableVbmeta = MessageBox.Show(
+                "是否禁用 vbmeta 验证?\n\n" +
+                "• 刷入第三方 ROM 时建议禁用\n" +
+                "• 官方固件建议保持启用",
+                "vbmeta 设置",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.Yes;
+
+            TaskbarProgressHelper.Start();
+
+            var result = await _payloadFlasher.FlashPayloadAsync(
+                payloadPath,
+                selectedPartitions: null, // 刷入所有分区
+                ignoreUnknownPartitions: true,
+                ignoreChecks: false,
+                disableVbmetaVerity: disableVbmeta);
+
+            TaskbarProgressHelper.Stop();
+
+            if (result.Success)
+            {
+                MessageBox.Show(
+                    $"Payload 刷入完成!\n\n" +
+                    $"成功: {result.SuccessfulPartitions.Count} 个分区\n" +
+                    $"失败: {result.FailedPartitions.Count} 个分区",
+                    "完成",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Payload 刷入失败!\n\n{result.ErrorMessage}",
+                    "错误",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 创建逻辑分区 (仅 FastbootD)
+        /// </summary>
+        private async Task CreateLogicalPartitionAsync()
+        {
+            if (_logicalPartitionManager == null || !_logicalPartitionManager.IsSupported)
+            {
+                MessageBox.Show("逻辑分区操作仅支持 FastbootD 模式", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var dialog = new Form
+            {
+                Text = "创建逻辑分区",
+                Size = new Size(350, 180),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var lblName = new System.Windows.Forms.Label { Text = "分区名称:", Location = new Point(20, 20), AutoSize = true };
+            var txtName = new System.Windows.Forms.TextBox { Location = new Point(100, 17), Width = 200 };
+            var lblSize = new System.Windows.Forms.Label { Text = "大小 (字节):", Location = new Point(20, 55), AutoSize = true };
+            var txtSize = new System.Windows.Forms.TextBox { Location = new Point(100, 52), Width = 200 };
+            var btnOk = new System.Windows.Forms.Button { Text = "创建", Location = new Point(100, 95), Width = 80, DialogResult = DialogResult.OK };
+            var btnCancel = new System.Windows.Forms.Button { Text = "取消", Location = new Point(200, 95), Width = 80, DialogResult = DialogResult.Cancel };
+
+            dialog.Controls.AddRange(new Control[] { lblName, txtName, lblSize, txtSize, btnOk, btnCancel });
+            dialog.AcceptButton = btnOk;
+            dialog.CancelButton = btnCancel;
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                if (string.IsNullOrWhiteSpace(txtName.Text))
+                {
+                    MessageBox.Show("分区名称不能为空", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                if (!long.TryParse(txtSize.Text, out var size) || size <= 0)
+                {
+                    MessageBox.Show("请输入有效的分区大小", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                var (success, message) = await _logicalPartitionManager.CreatePartitionAsync(txtName.Text.Trim(), size);
+                
+                if (success)
+                {
+                    AppendFastbootLog($"✓ {message}");
+                    MessageBox.Show(message, "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // 刷新分区列表
+                    await ReadFastbootDeviceDataEnhancedAsync();
+                }
+                else
+                {
+                    AppendFastbootLog($"✗ {message}");
+                    MessageBox.Show(message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 删除逻辑分区 (仅 FastbootD)
+        /// </summary>
+        private async Task DeleteLogicalPartitionAsync(string partitionName)
+        {
+            if (_logicalPartitionManager == null || !_logicalPartitionManager.IsSupported)
+            {
+                MessageBox.Show("逻辑分区操作仅支持 FastbootD 模式", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"确定要删除逻辑分区 '{partitionName}' 吗?\n\n此操作不可逆!",
+                "确认删除",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result != DialogResult.Yes) return;
+
+            var (success, message) = await _logicalPartitionManager.DeletePartitionAsync(partitionName);
+            
+            if (success)
+            {
+                AppendFastbootLog($"✓ {message}");
+                MessageBox.Show(message, "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // 刷新分区列表
+                await ReadFastbootDeviceDataEnhancedAsync();
+            }
+            else
+            {
+                AppendFastbootLog($"✗ {message}");
+                MessageBox.Show(message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 取消 VAB 更新
+        /// </summary>
+        private async Task CancelVabUpdateAsync()
+        {
+            if (_vabManager == null)
+            {
+                MessageBox.Show("VAB 管理器未初始化", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                "确定要取消 VAB 更新吗?\n\n" +
+                "这将清除待合并的更新数据，\n" +
+                "设备将保持在当前系统版本。",
+                "确认取消",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result != DialogResult.Yes) return;
+
+            var (success, message) = await _vabManager.CancelUpdateAsync();
+            
+            if (success)
+            {
+                AppendFastbootLog($"✓ {message}");
+                MessageBox.Show(message, "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // 刷新设备信息
+                await ReadFastbootDeviceDataEnhancedAsync();
+            }
+            else
+            {
+                AppendFastbootLog($"✗ {message}");
+                MessageBox.Show(message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// 切换 A/B 槽位
+        /// </summary>
+        private async Task SwitchSlotAsync()
+        {
+            if (_fastbootService == null || !_fastbootService.IsConnected)
+            {
+                AppendFastbootLog("设备未连接");
+                return;
+            }
+
+            if (_currentFastbootData == null || !_currentFastbootData.HasSlot)
+            {
+                MessageBox.Show("设备不支持 A/B 分区", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var currentSlot = _currentFastbootData.CurrentSlot?.ToLowerInvariant();
+            var targetSlot = currentSlot == "a" ? "b" : "a";
+
+            var result = MessageBox.Show(
+                $"确定要将活动槽位从 {currentSlot?.ToUpper()} 切换到 {targetSlot.ToUpper()} 吗?",
+                "切换槽位",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result != DialogResult.Yes) return;
+
+            var (success, message) = await _fastbootService.SetActiveSlotAsync(targetSlot);
+            
+            if (success)
+            {
+                AppendFastbootLog($"✓ {message}");
+                MessageBox.Show(message, "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // 刷新设备信息
+                await ReadFastbootDeviceDataEnhancedAsync();
+            }
+            else
+            {
+                AppendFastbootLog($"✗ {message}");
+                MessageBox.Show(message, "失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        // ============== Fastboot 增强功能结束 ==============
+
         /// <summary>
         /// 安全执行异步操作，统一捕获并显示异常
         /// </summary>
@@ -357,6 +806,7 @@ namespace OPFlashTool
             InitializeListViewBehaviors();
             InitializePartitionHelpers();
             RefreshSelect4Items();
+            InitializeFastbootEnhancedServices(); // Fastboot 增强服务
 
             // 默认 UI 状态
             checkbox8.Checked = true;
